@@ -137,6 +137,12 @@ async function startServer() {
           html = html.replace('</head>', `    <script nomodule src="/assets/legacy.js"></script>\n  </head>`);
         }
 
+        // Inject critical inline CSS if not already present (ensures header/forms render without Tailwind)
+        if (!html.includes('/* CRITICAL_INLINE_CSS_MARKER */')) {
+          const criticalCss = `\n    <style>/* CRITICAL_INLINE_CSS_MARKER */\n      header{background:#0f172a;border-bottom:1px solid rgba(15,23,42,0.9);color:#f8fafc;position:sticky;top:0;z-index:30}\n      header .container{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}\n      header .brand{display:flex;align-items:center;gap:12px}\n      header h1{font-size:1rem;margin:0;font-weight:700}\n      .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:.75rem;background:#0b1220;color:#e6eef8;border:1px solid rgba(255,255,255,0.03);font-size:.85rem}\n      .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:1rem}\n      .modal{background:#0b1220;border:1px solid #111827;border-radius:16px;max-width:640px;width:100%;color:#e6eef8;overflow:hidden}\n      input,select,textarea,button{font-family:system-ui,Segoe UI,Roboto,\"Helvetica Neue\",Arial}\n      input,select,textarea{background:#071021;border:1px solid #111827;color:#e6eef8;padding:.65rem .9rem;border-radius:12px}\n      .rounded-xl{border-radius:12px}\n      .text-slate-100{color:#f1f5f9}\n      .bg-slate-900{background:#0f172a}\n    </style>\n  `;
+          html = html.replace('</head>', criticalCss + '  </head>');
+        }
+
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(html);
       } catch (err) {
