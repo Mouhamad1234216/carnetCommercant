@@ -118,7 +118,8 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Serve static assets but do not automatically serve index.html so we can patch it dynamically
+    app.use(express.static(distPath, { index: false }));
 
     // Serve a small legacy fallback script for old browsers that don't support modules
     app.get('/assets/legacy-fallback.js', (req, res) => {
