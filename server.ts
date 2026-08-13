@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -118,8 +119,30 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+
+    // Serve index.html dynamically so we can patch crossorigin and inject nomodule at runtime
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      try {
+        const indexFile = path.join(distPath, 'index.html');
+        let html = fs.readFileSync(indexFile, 'utf8');
+
+        // Remove crossorigin attributes from scripts/links
+        html = html.replace(/\s+crossorigin(?=[\s>])/g, '');
+
+        // Inject nomodule legacy script if a legacy bundle exists and nomodule is not already present
+        const legacyPath = path.join(distPath, 'assets', 'legacy.js');
+        if (fs.existsSync(legacyPath) && !/nomodule/.test(html)) {
+          const marker = /<script[^>]*type="module"[^>]*><\/script>|<script[^>]*type="module"[^>]*>.*?<\/script>/s;
+          // Fallback: insert before closing </head>
+          html = html.replace('</head>', `    <script nomodule src="/assets/legacy.js"></script>\n  </head>`);
+        }
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+      } catch (err) {
+        console.error('Failed to read or patch index.html:', err);
+        res.status(500).send('Internal Server Error');
+      }
     });
   }
 
