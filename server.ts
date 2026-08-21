@@ -107,7 +107,7 @@ Fais une analyse synthétique en 3 conseils pratiques pour le commerçant pour a
 });
 
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV === 'development') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
