@@ -1,0 +1,8 @@
+// legacy-fallback.js - minimal UI for old browsers
+(function(){
+  try{
+    var root = document.getElementById('root');
+    if(!root) return;
+    root.innerHTML = '\n      <header style="background:#0f172a;color:#f8fafc;padding:12px 16px;position:sticky;top:0;z-index:30">\n        <div style="display:flex;align-items:center;gap:12px">\n          <div style="width:40px;height:40px;border-radius:8px;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-weight:700">CC</div>\n          <div>\n            <div style="font-weight:700;font-size:16px">Carnet de Crédit</div>\n            <div style="font-size:12px;color:#94a3b8">Commerçant</div>\n          </div>\n        </div>\n      </header>\n      <main style="padding:16px">\n        <h2 style="color:#e6eef8">Bienvenue</h2>\n        <p style="color:#cbd5e1">Cette version est une version de secours pour les navigateurs anciens. Pour la meilleure expérience, utilisez un navigateur moderne (Chrome/Firefox).</p>\n        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">\n          <button style="padding:8px 12px;border-radius:10px;background:#0ea5a0;color:#031024;border:0">Nouveau Client</button>\n          <button style="padding:8px 12px;border-radius:10px;background:#fb7185;color:white;border:0">+ Nouveau Prêt</button>\n        </div>\n      </main>';
+  }catch(e){console.error('legacy fallback error',e)}
+})();

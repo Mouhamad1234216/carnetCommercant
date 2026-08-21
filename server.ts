@@ -1,13 +1,16 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const __dirname = process.cwd();
+
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -115,9 +118,43 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Serve static assets but do not automatically serve index.html so we can patch it dynamically
+    app.use(express.static(distPath, { index: false }));
+
+    // Serve a small legacy fallback script for old browsers that don't support modules
+    app.get('/assets/legacy-fallback.js', (req, res) => {
+      const script = `// legacy-fallback.js - minimal UI for old browsers\n(function(){\n  try{\n    var root = document.getElementById('root');\n    if(!root) return;\n    root.innerHTML = '\\n      <header style="background:#0f172a;color:#f8fafc;padding:12px 16px;position:sticky;top:0;z-index:30">\\n        <div style="display:flex;align-items:center;gap:12px">\\n          <div style="width:40px;height:40px;border-radius:8px;background:#10b981;display:flex;align-items:center;justify-content:center;color:white;font-weight:700">CC</div>\\n          <div>\\n            <div style="font-weight:700;font-size:16px">Carnet de Crédit</div>\\n            <div style="font-size:12px;color:#94a3b8">Commerçant</div>\\n          </div>\\n        </div>\\n      </header>\\n      <main style="padding:16px">\\n        <h2 style="color:#e6eef8">Bienvenue</h2>\\n        <p style="color:#cbd5e1">Cette version est une version de secours pour les navigateurs anciens. Pour la meilleure expérience, utilisez un navigateur moderne (Chrome/Firefox).</p>\\n        <div style=\"margin-top:12px;display:flex;gap:8px;flex-wrap:wrap\">\\n          <button style=\"padding:8px 12px;border-radius:10px;background:#0ea5a0;color:#031024;border:0\">Nouveau Client</button>\\n          <button style=\"padding:8px 12px;border-radius:10px;background:#fb7185;color:white;border:0\">+ Nouveau Prêt</button>\\n        </div>\\n      </main>';\n  }catch(e){console.error('legacy fallback error',e)}\n})();`;
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.send(script);
+    });
+
+    // Serve index.html dynamically so we can patch crossorigin and inject nomodule at runtime
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      try {
+        const indexFile = path.join(distPath, 'index.html');
+        let html = fs.readFileSync(indexFile, 'utf8');
+
+        // Remove crossorigin attributes from scripts/links
+        html = html.replace(/\s+crossorigin(?=[\s>])/g, '');
+
+        // Inject nomodule legacy fallback (served by server) so old browsers render a minimal UI
+        if (!/nomodule/.test(html)) {
+          const cacheBust = Date.now();
+          html = html.replace('</head>', `    <script nomodule src="/assets/legacy-fallback.js?v=${cacheBust}"></script>\n  </head>`);
+        }
+
+        // Inject critical inline CSS if not already present (ensures header/forms render without Tailwind)
+        if (!html.includes('/* CRITICAL_INLINE_CSS_MARKER */')) {
+          const criticalCss = `\n    <style>/* CRITICAL_INLINE_CSS_MARKER */\n      header{background:#0f172a;border-bottom:1px solid rgba(15,23,42,0.9);color:#f8fafc;position:sticky;top:0;z-index:30}\n      header .container{display:flex;align-items:center;justify-content:space-between;padding:12px 16px}\n      header .brand{display:flex;align-items:center;gap:12px}\n      header h1{font-size:1rem;margin:0;font-weight:700}\n      .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:.75rem;background:#0b1220;color:#e6eef8;border:1px solid rgba(255,255,255,0.03);font-size:.85rem}\n      .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:1rem}\n      .modal{background:#0b1220;border:1px solid #111827;border-radius:16px;max-width:640px;width:100%;color:#e6eef8;overflow:hidden}\n      input,select,textarea,button{font-family:system-ui,Segoe UI,Roboto,\"Helvetica Neue\",Arial}\n      input,select,textarea{background:#071021;border:1px solid #111827;color:#e6eef8;padding:.65rem .9rem;border-radius:12px}\n      .rounded-xl{border-radius:12px}\n      .text-slate-100{color:#f1f5f9}\n      .bg-slate-900{background:#0f172a}\n    </style>\n  `;
+          html = html.replace('</head>', criticalCss + '  </head>');
+        }
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+      } catch (err) {
+        console.error('Failed to read or patch index.html:', err);
+        res.status(500).send('Internal Server Error');
+      }
     });
   }
 
