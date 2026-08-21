@@ -1,0 +1,6 @@
+{
+  "name": "Carnet de Crédit Commerçant",
+  "description": "Application simple et rapide pour commerçants pour enregistrer les prêts, crédits et remboursements des clients, envoyer des rappels WhatsApp et gérer leur carnet de dettes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
